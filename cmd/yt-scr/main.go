@@ -12,8 +12,8 @@ import (
 func main() {
 	// Define flags
 	url := flag.String("url", "", "YouTube video URL")
-	ts := flag.String("t", "", "Timestamp (e.g. 42, 1m34s -- optional, derived from link)")
-	out := flag.String("o", "", "Output filename. PNG/JPG (optional)")
+	ts := flag.String("t", "", "Timestamp e.g. 42, 1m34s (optional, derived from link)")
+	out := flag.String("o", "", "Output filename PNG/JPG (optional)")
 	help := flag.Bool("h", false, "Show help")
 
 	flag.Parse()
@@ -29,31 +29,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get YouTube video id and timestamp if present
-	id, tsRaw, err := capture.ExtractVideoIdAndTs(*url)
+	cfg, err := capture.NewCaptureConfig(*url, *ts, *out)
 	if err != nil {
-		log.Fatalf("error parsing URL: %v", err)
-	}
-	// Set the output filename from Youtube link
-	var snapFileExt string = ".png"
-	if *out == "" {
-		*out = fmt.Sprintf("%s_at_%s%s", id, tsRaw, snapFileExt)
+		log.Fatalf("error creating capture config: %v", err)
 	}
 
-	// Set the video fragment file name from youtube link
-	var fragFileExt string = ".mp4"
-	fragFileName := fmt.Sprintf("%s_at_%s_fragment%s", id, tsRaw, fragFileExt)
+	// Capture logic
 
-	// use timestamp from video if no flag provided
-	if *ts == "" {
-		*ts = tsRaw
+	fmt.Println("Downloading fragment...")
+	if err := cfg.DownloadFragment(); err != nil {
+		log.Fatalf("yt-scr: failed to download fragment: %v", err)
 	}
 
-	// Call capture logic
-	if err := capture.GetFrame(*url, *ts, fragFileName, *out); err != nil {
-		log.Fatalf("yt-scr: failed to capture frame: %v", err)
+	fmt.Println("Extracting frame...")
+	if err := cfg.ExtractFrame(); err != nil {
+		log.Fatalf("ffmpeg: failed to capture frame: %v", err)
 	}
 
-	fmt.Printf("Frame captured successfully: %s\n", *out)
+	fmt.Printf("Frame captured successfully: %s\n", cfg.OutFile)
 
 }

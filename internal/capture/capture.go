@@ -10,9 +10,73 @@ import (
 	"strings"
 )
 
-const offset int = 1
+type internalConfig struct {
+	offset          int
+	scrFileExt      string
+	fragFileExt     string
+	showToolsOutput bool
+}
 
-func ExtractVideoIdAndTs(raw string) (id, ts string, err error) {
+var defaults = internalConfig{
+	offset:          1,
+	scrFileExt:      "png",
+	fragFileExt:     "mp4",
+	showToolsOutput: true,
+}
+
+type CaptureConfig struct {
+	URL       string // original YouTube URL
+	VideoID   string // parsed from URL
+	Timestamp int    // target timestamp in seconds
+	Offset    int    // seconds before/after timestamp
+	Start     int    // fragment start (clamped)
+	Finish    int    // fragment finish
+	FragFile  string // temporary fragment filename
+	OutFile   string // final frame filename
+}
+
+func NewCaptureConfig(url, tsRaw, out string) (*CaptureConfig, error) {
+
+	id, urlTsRaw, err := ExtractVideoIDAndTimestamp(url)
+	if err != nil {
+		return nil, err
+	}
+
+	if tsRaw == "" {
+		tsRaw = urlTsRaw
+	}
+
+	if tsRaw == "" {
+		return nil, fmt.Errorf("no timestamp provided (flag or in URL)")
+	}
+
+	tsSecs, err := ParseYoutubeTime(tsRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	start, finish := DeriveRange(tsSecs, defaults.offset)
+
+	fragFile := fmt.Sprintf("%s_at_%d_fragment.%s", id, tsSecs, defaults.fragFileExt)
+
+	if out == "" {
+		out = fmt.Sprintf("%s_at_%d.%s", id, tsSecs, defaults.scrFileExt)
+	}
+
+	return &CaptureConfig{
+		URL:       url,
+		VideoID:   id,
+		Timestamp: tsSecs,
+		Offset:    defaults.offset,
+		Start:     start,
+		Finish:    finish,
+		FragFile:  fragFile,
+		OutFile:   out,
+	}, nil
+
+}
+
+func ExtractVideoIDAndTimestamp(raw string) (id, ts string, err error) {
 	u, err := url.Parse(raw)
 	if err != nil {
 		return "", "", err
@@ -45,13 +109,11 @@ func ExtractVideoIdAndTs(raw string) (id, ts string, err error) {
 	return id, ts, nil
 }
 
+// Checks provided time format and converts to seconds if needed
 func ParseYoutubeTime(raw string) (int, error) {
 
 	raw = strings.TrimSpace(strings.ToLower(raw))
 
-	// if strings.HasSuffix(raw, "s") {
-	// 	raw = strings.TrimSuffix(raw, "s")
-	// }
 	if cut, ok := strings.CutSuffix(raw, "s"); ok {
 		raw = cut
 	}
@@ -105,46 +167,37 @@ func DeriveRange(ts, offset int) (start, finish int) {
 }
 
 // Downloads a short clip around the timestamp using yt-dlp
-func GetFragment(url string, ts, offset int, out string) error {
-	start, finish := DeriveRange(ts, offset)
+func (c CaptureConfig) DownloadFragment() error {
 
 	// yt-dlp command: download fragment between start and finish
 	cmd := exec.Command(
 		"yt-dlp", "-f", "bv", "--remux-video", "mp4",
-		"--download-sections", fmt.Sprintf("*%d-%d", start, finish),
-		"--force-overwrites", "--force-keyframes-at-cuts", "-o", out, url)
+		"--download-sections", fmt.Sprintf("*%d-%d", c.Start, c.Finish),
+		"--force-overwrites", "--force-keyframes-at-cuts", "-o", c.FragFile, c.URL)
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if defaults.showToolsOutput {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("yt-dlp failed: %v", err)
 	}
-
 	return nil
 }
 
 // Extracts a single frame at the exact timestamp from the fragment
-func GetFrame(url, tsRaw, fragFileName, out string) error {
-	// Parse timestamp
-	tsSecs, err := ParseYoutubeTime(tsRaw)
-	if err != nil {
-		return fmt.Errorf("invalid timestamp: %w", err)
+func (c CaptureConfig) ExtractFrame() error {
+
+	frameSeek := c.Timestamp - c.Start
+	frameStr := FormatFFmpegTime(frameSeek)
+
+	cmd := exec.Command("ffmpeg", "-i", c.FragFile, "-ss", frameStr, "-frames:v", "1", c.OutFile)
+
+	if defaults.showToolsOutput {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
-
-	// Download fragment
-
-	if err := GetFragment(url, tsSecs, offset, fragFileName); err != nil {
-		return fmt.Errorf("fragment extraction failed: %w", err)
-	}
-
-	// Extract frame at original ts
-	frame := offset
-	frameStr := FormatFFmpegTime(frame)
-
-	cmd := exec.Command("ffmpeg", "-i", fragFileName, "-ss", frameStr, "-frames:v", "1", out)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("ffmpeg failed: %v", err)
