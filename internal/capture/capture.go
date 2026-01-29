@@ -17,7 +17,7 @@ type internalConfig struct {
 	showToolsOutput bool
 }
 
-var defaults = internalConfig{
+var defaults = &internalConfig{
 	offset:          1,
 	scrFileExt:      "png",
 	fragFileExt:     "mp4",
@@ -109,45 +109,69 @@ func ExtractVideoIDAndTimestamp(raw string) (id, ts string, err error) {
 	return id, ts, nil
 }
 
-// Checks provided time format and converts to seconds if needed
+// Checks provided timestamp format and converts to seconds if needed
 func ParseYoutubeTime(raw string) (int, error) {
 
 	raw = strings.TrimSpace(strings.ToLower(raw))
 
-	if cut, ok := strings.CutSuffix(raw, "s"); ok {
-		raw = cut
-	}
-
-	// Plain int seconds
+	// Plain integer seconds
 	if secs, err := strconv.Atoi(raw); err == nil {
 		return secs, nil
+	}
+
+	// Simple suffix: "42s"
+	if strings.HasSuffix(raw, "s") && !strings.ContainsAny(raw, "hm") {
+		if secs, err := strconv.Atoi(strings.TrimSuffix(raw, "s")); err == nil {
+			return secs, nil
+		}
 	}
 
 	// Composite time formats
 	var total int
 	var num string
+	var lastUnit rune
 	for _, ch := range raw {
 		if ch >= '0' && ch <= '9' {
 			num += string(ch)
 			continue
 		}
 		if num == "" {
-			continue
+			// Non-digit without a preceding number
+			if ch == 'h' || ch == 'm' || ch == 's' {
+				return 0, fmt.Errorf("missing number before unit: %c", ch)
+			}
 		}
 		val, _ := strconv.Atoi(num)
 		switch ch {
 		case 'h':
+			if lastUnit >= 'h' {
+				return 0, fmt.Errorf("duplicate or out-of-order unit 'h'")
+			}
 			total += val * 3600
+			lastUnit = 'h'
 		case 'm':
+			if lastUnit >= 'm' {
+				return 0, fmt.Errorf("duplicate or out-of-order minutes")
+			}
 			total += val * 60
+			lastUnit = 'm'
 		case 's':
+			if lastUnit >= 's' {
+				return 0, fmt.Errorf("duplicate or out-of-order seconds")
+			}
 			total += val
+			lastUnit = 's'
+		default:
+			return 0, fmt.Errorf("Invalid time unit: %c", ch)
 		}
 		num = ""
 	}
-	if total == 0 {
-		return 0, fmt.Errorf("invalid timestamp: %s", raw)
+
+	// Check for trailing numbers without unit
+	if num != "" {
+		return 0, fmt.Errorf("trailing number without unit: %s", num)
 	}
+
 	return total, nil
 }
 
@@ -158,10 +182,7 @@ func FormatFFmpegTime(secs int) string {
 
 // Calculates start and finish for yt-dlp fragment download
 func DeriveRange(ts, offset int) (start, finish int) {
-	start = ts - offset
-	if start < 0 {
-		start = 0
-	}
+	start = max(ts-offset, 0)
 	finish = ts + offset
 	return start, finish
 }
@@ -181,7 +202,7 @@ func (c CaptureConfig) DownloadFragment() error {
 	}
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("yt-dlp failed: %v", err)
+		return fmt.Errorf("yt-dlp failed: %w", err)
 	}
 	return nil
 }
@@ -200,7 +221,7 @@ func (c CaptureConfig) ExtractFrame() error {
 	}
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("ffmpeg failed: %v", err)
+		return fmt.Errorf("ffmpeg failed: %w", err)
 	}
 
 	return nil

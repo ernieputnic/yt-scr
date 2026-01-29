@@ -12,7 +12,7 @@ import (
 func main() {
 	// Define flags
 	url := flag.String("url", "", "YouTube video URL")
-	ts := flag.String("t", "", "Timestamp e.g. 42, 1m34s (optional, derived from link)")
+	ts := flag.String("t", "", "Timestamp e.g. 42, 1h23m57s (optional, derived from link)")
 	out := flag.String("o", "", "Output filename PNG/JPG (optional)")
 	help := flag.Bool("h", false, "Show help")
 
