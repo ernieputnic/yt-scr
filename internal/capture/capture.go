@@ -32,10 +32,11 @@ type CaptureConfig struct {
 	Start     int    // fragment start (clamped)
 	Finish    int    // fragment finish
 	FragFile  string // temporary fragment filename
+	KeepFrag  bool   // whether to keep fragment file
 	OutFile   string // final frame filename
 }
 
-func NewCaptureConfig(url, tsRaw, out string) (*CaptureConfig, error) {
+func NewCaptureConfig(url, tsRaw, out string, kf bool) (*CaptureConfig, error) {
 
 	id, urlTsRaw, err := ExtractVideoIDAndTimestamp(url)
 	if err != nil {
@@ -71,6 +72,7 @@ func NewCaptureConfig(url, tsRaw, out string) (*CaptureConfig, error) {
 		Start:     start,
 		Finish:    finish,
 		FragFile:  fragFile,
+		KeepFrag:  kf,
 		OutFile:   out,
 	}, nil
 
@@ -226,4 +228,15 @@ func (c CaptureConfig) ExtractFrame() error {
 
 	return nil
 
+}
+
+// Cleans up fragment file
+func (c CaptureConfig) CleanupFragment() error {
+	if c.FragFile == "" {
+		return fmt.Errorf("fragment filename not set")
+	}
+	if err := os.Remove(c.FragFile); err != nil {
+		return fmt.Errorf("failed to remove fragment %s: %w", c.FragFile, err)
+	}
+	return nil
 }

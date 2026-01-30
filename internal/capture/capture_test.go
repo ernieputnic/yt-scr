@@ -28,8 +28,9 @@ func TestParseYoutubeTime(t *testing.T) {
 		{"10d", 0, false},       // Typo e.g. 'd' instead of 's'
 		{"30s2m", 0, false},     // Out of order units
 		{"2m1h", 0, false},      // Out of order units
-		{"1h2h", 0, false},      // Duplicate units
-		{"30m40m", 0, false},    // - // -
+		{"1h2h", 0, false},      // Duplicate hours
+		{"30m40m", 0, false},    // Duplicate minutes
+		{"30s3s", 0, false},     // Duplicate seconds
 		{"1h2m3s45", 0, false},  // Trailing numbers
 		{"1h 2m", 0, false},     // Spaces within timestamp
 	}
