@@ -11,10 +11,10 @@ import (
 
 func main() {
 	// Define flags
-	url := flag.String("url", "", "YouTube video URL")
-	ts := flag.String("t", "", "Timestamp e.g. 42, 1h23m57s (optional, derived from link)")
-	out := flag.String("o", "", "Output filename PNG/JPG (optional)")
-	kf := flag.Bool("k", false, "Keep video fragment file")
+	url := flag.String("url", "", "YouTube video URL - required")
+	ts := flag.String("t", "", "Timestamp (e.g. '42', '1m23s', '1h23m57s') - optional if URL contains 't='")
+	out := flag.String("o", "", "Output filename PNG/JPG - optional, defaults to '<videoid>_at_<timestamp>.png'")
+	kf := flag.Bool("k", false, "Keep video fragment file - optional, defaults to '<videoid>_at_<timestamp>_fragment.mp4'")
 	help := flag.Bool("h", false, "Show help")
 
 	flag.Parse()

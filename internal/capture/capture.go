@@ -147,7 +147,7 @@ func ParseYoutubeTime(raw string) (int, error) {
 		switch ch {
 		case 'h':
 			if lastUnit >= 'h' {
-				return 0, fmt.Errorf("duplicate or out-of-order unit 'h'")
+				return 0, fmt.Errorf("duplicate or out-of-order unit hours")
 			}
 			total += val * 3600
 			lastUnit = 'h'
