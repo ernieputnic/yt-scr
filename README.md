@@ -1,19 +1,19 @@
 # :clapper: yt-scr
 ![Made with Go](https://img.shields.io/badge/Made%20with-Go-00ADD8?style=flat&logo=go)
 
-> **Screenshot** YouTube video at specific timestamp
+> **Screenshot** a YouTube video at a specific timestamp
 
 :warning: **Early Development** – Flags and behavior may change
 
 `yt-scr` is a lightweight command-line utility written in Go that captures a screenshot
 from a YouTube video at a given timestamp. It uses [yt-dlp](https://github.com/yt-dlp/yt-dlp) 
-to download a short fragment of the video and [ffmpeg](https://ffmpeg.org/) to extract the exact frame. 
+to download the short fragment of the video and [ffmpeg](https://ffmpeg.org/) to extract the exact frame. 
 
 ## Features
 - Accepts both `youtu.be/...` and `youtube.com/watch?...` links
 - Supports timestamps in formats like `t=42`, `t=1m23s`, or `t=1h2m35s`
 - Extracts an exact frame at the requested time
-- Outputs frame as `<videoid>_at_<timestamp>.png` by default
+- Outputs the frame as `<videoid>_at_<timestamp>.png` by default
 - Configurable options via command‑line flags
 
 ## Requirements
