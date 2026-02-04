@@ -32,12 +32,12 @@ go build ./cmd/yt-scr
 ## Usage
 Basic usage with timestamp in URL:
 ```bash
-./yt-scr "https://youtu.be/dQw4w9WgXcQ?t=42"
+./yt-scr --url "https://youtu.be/dQw4w9WgXcQ?t=42"
 ```
 
 Override timestamp:
 ```bash
-./yt-scr https://youtu.be/dQw4w9WgXcQ\?t\=42 -t 43 
+./yt-scr --url https://youtu.be/dQw4w9WgXcQ\?t\=42 -t 43
 ```
 
 Set timestamp, set custom filename, keep fragment — flags can be combined:

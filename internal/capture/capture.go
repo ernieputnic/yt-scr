@@ -164,7 +164,7 @@ func ParseYoutubeTime(raw string) (int, error) {
 			total += val
 			lastUnit = 's'
 		default:
-			return 0, fmt.Errorf("Invalid time unit: %c", ch)
+			return 0, fmt.Errorf("invalid time unit: %c", ch)
 		}
 		num = ""
 	}
