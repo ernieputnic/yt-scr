@@ -45,11 +45,7 @@ func main() {
 	fmt.Println("Extracting frame...")
 	if err := cfg.ExtractFrame(); err != nil {
 		log.Fatalf("ffmpeg: failed to capture frame: %v", err)
-	}
-
-	fmt.Printf("Frame captured successfully: %s\n", cfg.OutFile)
-
-	if !cfg.KeepFrag {
+	} else if !cfg.KeepFrag {
 		err := cfg.CleanupFragment()
 		if err != nil {
 			log.Printf("Warning: %v", err)
@@ -57,5 +53,7 @@ func main() {
 	} else {
 		fmt.Printf("Video fragment kept: %s\n", cfg.FragFile)
 	}
+
+	fmt.Printf("Frame captured successfully: %s\n", cfg.OutFile)
 
 }

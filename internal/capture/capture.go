@@ -6,22 +6,34 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 )
 
+type FileExt string
+
+const (
+	JPG FileExt = "jpg"
+	PNG FileExt = "png"
+	MP4 FileExt = "mp4"
+)
+
 type internalConfig struct {
-	offset          int
-	scrFileExt      string
-	fragFileExt     string
-	showToolsOutput bool
+	offset             int
+	allowedScrFileExts []FileExt
+	scrFileExt         FileExt
+	fragFileExt        FileExt
+	showToolsOutput    bool
 }
 
 var defaults = &internalConfig{
-	offset:          1,
-	scrFileExt:      "png",
-	fragFileExt:     "mp4",
-	showToolsOutput: true,
+	offset:             1,
+	allowedScrFileExts: []FileExt{JPG, PNG},
+	scrFileExt:         PNG,
+	fragFileExt:        MP4,
+	showToolsOutput:    false,
 }
 
 type CaptureConfig struct {
@@ -58,11 +70,20 @@ func NewCaptureConfig(url, tsRaw, out string, kf bool) (*CaptureConfig, error) {
 
 	start, finish := DeriveRange(tsSecs, defaults.offset)
 
-	fragFile := fmt.Sprintf("%s_at_%d_fragment.%s", id, tsSecs, defaults.fragFileExt)
-
+	// Validate output path
+	outExt := strings.TrimPrefix(filepath.Ext(out), ".")
 	if out == "" {
 		out = fmt.Sprintf("%s_at_%d.%s", id, tsSecs, defaults.scrFileExt)
+	} else if outExt != "" {
+		if !slices.Contains(defaults.allowedScrFileExts, FileExt(strings.ToLower(outExt))) {
+			return nil, fmt.Errorf("unsupported file type used: .%s, allowed: %v", outExt, defaults.allowedScrFileExts)
+		}
+	} else {
+		out = filepath.Join(out, fmt.Sprintf("%s_at_%d.%s", id, tsSecs, defaults.scrFileExt))
 	}
+
+	fragDir := filepath.Dir(out)
+	fragFile := filepath.Join(fragDir, fmt.Sprintf("%s_at_%d_fragment.%s", id, tsSecs, defaults.fragFileExt))
 
 	return &CaptureConfig{
 		URL:       url,
@@ -194,7 +215,7 @@ func (c CaptureConfig) DownloadFragment() error {
 
 	// yt-dlp command: download fragment between start and finish
 	cmd := exec.Command(
-		"yt-dlp", "-f", "bv", "--remux-video", "mp4",
+		"yt-dlp", "-f", "bv", "--remux-video", string(defaults.fragFileExt),
 		"--download-sections", fmt.Sprintf("*%d-%d", c.Start, c.Finish),
 		"--force-overwrites", "--force-keyframes-at-cuts", "-o", c.FragFile, c.URL)
 
